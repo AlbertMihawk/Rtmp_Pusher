@@ -26,6 +26,15 @@ void releasePackets(RTMPPacket **packet) {
     }
 }
 
+void callback(RTMPPacket *packet) {
+    if (packet) {
+        if (packet->m_nTimeStamp == -1) {
+            packet->m_nTimeStamp = RTMP_GetTime() - start_time;
+        }
+        packets.push(packet);
+    }
+}
+
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_albert_rtmp_1pusher_MainActivity_stringFromJNI(
         JNIEnv *env,
@@ -42,7 +51,7 @@ JNIEXPORT void JNICALL
 Java_com_albert_rtmp_1pusher_NEPusher_native_1init(JNIEnv *env, jobject thiz) {
     //编码器进行编码 工具类 VideoChannel
     videoChannel = new VideoChannel;
-
+    videoChannel->setVideoCallback(callback);
     //准备一个安全队列，把数据放入队列，在同一的线程中取出数据，在发送给服务器
     packets.setReleaseCallback(releasePackets);
 
@@ -152,4 +161,29 @@ Java_com_albert_rtmp_1pusher_NEPusher_native_1stop(JNIEnv *env, jobject thiz) {
     //等着子线程执行完
     pthread_join(pid_start, 0);
 
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_albert_rtmp_1pusher_NEPusher_native_1pushVideo(JNIEnv *env, jobject thiz,
+                                                        jbyteArray data_) {
+    if (!videoChannel || !readyPushing) {
+        return;
+    }
+    jbyte *data = env->GetByteArrayElements(data_, NULL);
+
+
+
+    //对摄像头原始数据进行编码
+    videoChannel->encodeData(data);
+    env->ReleaseByteArrayElements(data_, data, 0);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_albert_rtmp_1pusher_NEPusher_native_1initVideoEncoder(JNIEnv *env, jobject thiz, jint w,
+                                                               jint h, jint fps, jint bitrate) {
+    if (videoChannel) {
+        videoChannel->initVideoEncoder(w, h, fps, bitrate);
+    }
 }

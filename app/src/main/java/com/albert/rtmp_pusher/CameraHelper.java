@@ -152,9 +152,6 @@ public class CameraHelper implements SurfaceHolder.Callback, Camera.PreviewCallb
         mSurfaceHolder.addCallback(this);
     }
 
-    public void setPreviewCallback(Camera.PreviewCallback previewCallback) {
-        mPreviewCallback = previewCallback;
-    }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
@@ -176,10 +173,9 @@ public class CameraHelper implements SurfaceHolder.Callback, Camera.PreviewCallb
 
 
     /**
-     *
      * NV21和I420都属于YUV420格式
      *
-     * @param data nv21格式数据
+     * @param data   nv21格式数据
      * @param camera
      */
     @Override
@@ -189,6 +185,10 @@ public class CameraHelper implements SurfaceHolder.Callback, Camera.PreviewCallb
             mPreviewCallback.onPreviewFrame(data, camera);
         }
         camera.addCallbackBuffer(buffer);
+    }
+
+    public void setPreviewCallback(Camera.PreviewCallback previewCallback) {
+        mPreviewCallback = previewCallback;
     }
 
     public void setOnChangedSizeListener(OnChangedSizeListener listener) {

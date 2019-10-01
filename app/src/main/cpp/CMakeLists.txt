@@ -7,12 +7,17 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/librtmp)
 include_directories(librtmp libx264)
 set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} -L${CMAKE_SOURCE_DIR}/libx264/${CMAKE_ANDROID_ARCH_ABI}")
 
-add_library(native-lib
+add_library(
+        native-lib
         SHARED
-        native-lib.cpp)
+        native-lib.cpp
+        VideoChannel.cpp
+)
 
 
 target_link_libraries(
         native-lib
         rtmp
-        log)
+        x264
+        log
+)

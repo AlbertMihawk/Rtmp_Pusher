@@ -13,9 +13,9 @@ public class NEPusher {
     private final AudioChannel audioChannel;
 
 
-    public NEPusher(Activity activity, int cameraId, int width, int height, int bitrate) {
+    public NEPusher(Activity activity, int cameraId, int width, int height,int fps, int bitrate) {
         native_init();
-        videoChannel = new VideoChannel(activity, cameraId, width, height, bitrate);
+        videoChannel = new VideoChannel(this, activity, cameraId, width, height,fps, bitrate);
         audioChannel = new AudioChannel();
 
     }
@@ -53,4 +53,8 @@ public class NEPusher {
     private native void native_start(String path);
 
     private native void native_stop();
+
+    public native void native_pushVideo(byte[] data);
+
+    public native void native_initVideoEncoder(int w, int h, int fps, int bitrate);
 }
