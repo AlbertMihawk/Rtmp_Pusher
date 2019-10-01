@@ -8,36 +8,36 @@ import android.view.View;
 
 public class MainActivity extends AppCompatActivity {
 
-    static {
-        System.loadLibrary("native-lib");
-    }
+//    static {
+//        System.loadLibrary("native-lib");
+//    }
 
-    private CameraHelper cameraHelper;
+
+    private NEPusher nePusher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-//        // Example of a call to a native method
-//        TextView tv = findViewById(R.id.sample_text);
-//        tv.setText(stringFromJNI());
-
         SurfaceView surfaceView = findViewById(R.id.surfaceView);
-        cameraHelper = new CameraHelper(this, Camera.CameraInfo.CAMERA_FACING_BACK, 480, 800);
-        cameraHelper.setPreviewDisplay(surfaceView.getHolder());
+        nePusher = new NEPusher(this, Camera.CameraInfo.CAMERA_FACING_BACK, 640, 480, 48000);
+        nePusher.setPreviewDisplay(surfaceView.getHolder());
+
     }
 
 //    public native String stringFromJNI();
 
     public void switchCamera(View view) {
-        cameraHelper.switchCamera();
+        nePusher.switchCamera();
     }
 
     public void startLive(View view) {
+        nePusher.startLive("rtmp://http://192.168.201.128/myapp/");
     }
 
     public void stopLive(View view) {
+        nePusher.stopLive();
     }
 }
 

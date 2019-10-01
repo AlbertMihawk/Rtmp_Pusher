@@ -174,8 +174,17 @@ public class CameraHelper implements SurfaceHolder.Callback, Camera.PreviewCallb
         stopPreview();
     }
 
+
+    /**
+     *
+     * NV21和I420都属于YUV420格式
+     *
+     * @param data nv21格式数据
+     * @param camera
+     */
     @Override
     public void onPreviewFrame(byte[] data, Camera camera) {
+        //TODO 作业：data没有做旋转处理 yuv
         if (mPreviewCallback != null) {
             mPreviewCallback.onPreviewFrame(data, camera);
         }
