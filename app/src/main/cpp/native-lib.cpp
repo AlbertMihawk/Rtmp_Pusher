@@ -128,7 +128,6 @@ void *task_start(void *args) {
     if (rtmp) {
         RTMP_Close(rtmp);
         RTMP_Free(rtmp);
-        delete rtmp;
     }
 
     delete url;
@@ -147,7 +146,7 @@ Java_com_albert_rtmp_1pusher_NEPusher_native_1start(JNIEnv *env, jobject thiz, j
     char *url = new char(strlen(path) + 1);
     strcpy(url, path);
     //创建线程来进行直播
-    pthread_create(&pid_start, 0, task_start, &url);
+    pthread_create(&pid_start, 0, task_start, url);
 
     env->ReleaseStringUTFChars(path_, path);
 

@@ -33,7 +33,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void startLive(View view) {
-        nePusher.startLive("rtmp://http://192.168.201.128/myapp/");
+//        nePusher.startLive("rtmp://192.168.201.128/myapp/");
+        nePusher.startLive("rtmp://59.111.90.142/myapp/");
     }
 
     public void stopLive(View view) {

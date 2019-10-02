@@ -129,10 +129,10 @@ void VideoChannel::encodeData(int8_t *data) {
     uint8_t pps[100];
     pic_in->i_pts += 1;
     for (int i = 0; i < pi_nal; ++i) {
-        if (nal[i].i_type = NAL_SPS) {
+        if (nal[i].i_type == NAL_SPS) {
             sps_len = nal[i].i_payload - 4;//去掉其实码
             memcpy(sps, nal[i].p_payload + 4, sps_len);
-        } else if (nal[i].i_type = NAL_PPS) {
+        } else if (nal[i].i_type == NAL_PPS) {
             pps_len = nal[i].i_payload - 4;//去掉其实码
             memcpy(pps, nal[i].p_payload + 4, pps_len);
             //pps是跟在sps后面，这里达到pps表示前面sps肯定拿到了
