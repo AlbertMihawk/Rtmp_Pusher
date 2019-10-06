@@ -3,8 +3,8 @@
 //
 
 
-#include <__mutex_base>
-#include <rtmp.h>
+
+
 #include "VideoChannel.h"
 
 
@@ -14,6 +14,14 @@ VideoChannel::VideoChannel() {
 
 VideoChannel::~VideoChannel() {
     pthread_mutex_destroy(&mutex);
+    if (videoEncoder) {
+        x264_encoder_close(videoEncoder);
+        videoEncoder = 0;
+    }
+    if (pic_in) {
+        x264_picture_clean(pic_in);
+        DELETE(pic_in)
+    }
 }
 
 /**
@@ -39,11 +47,23 @@ void VideoChannel::initVideoEncoder(int w, int h, int fps, int bitrate) {
     y_len = mWidth * mHeight;
     uv_len = y_len / 4;
 
+    //TODO 先对videoEncoder和pic_in判断
+    if (videoEncoder) {
+        x264_encoder_close(videoEncoder);
+        videoEncoder = 0;
+    }
+    if (pic_in) {
+        x264_picture_clean(pic_in);
+        DELETE(pic_in)
+    }
+
+    //初始化x264编码器
     x264_param_t param;
     //ultrafast 最快
     //zerolatency 0延时
     x264_param_default_preset(&param, "ultrafast", "zerolatency");
-    //编码规则 baseline 3.2
+    //编码规则 base_line 3.2
+    //https://wikipedia.tw.wjbk.site/wiki/H.264
     param.i_level_idc = 32;
     //输入格式为YUV420P
     param.i_csp = X264_CSP_I420;
@@ -58,16 +78,16 @@ void VideoChannel::initVideoEncoder(int w, int h, int fps, int bitrate) {
 //    param.rc.i_rc_method = X264_RC_ABR;
 
     //码率（比特率）单位Kb/s
-    param.rc.i_bitrate = bitrate / 100;
+    param.rc.i_bitrate = mBitrate / 1000;
     //瞬时最大码率
-    param.rc.i_vbv_max_bitrate = bitrate / 1000 * 1.2;
+    param.rc.i_vbv_max_bitrate = mBitrate / 1000 * 1.2;
     //设置了i_vbv_max_bitrate就必须设置buffer大小，码率控制大小，单位Kb/s
-    param.rc.i_vbv_buffer_size = bitrate / 1000;
+    param.rc.i_vbv_buffer_size = mBitrate / 1000;
 
     //码率控制不是通过timebase和timestamp，而是通过fps
     param.b_vfr_input = 0;
     //帧率分子
-    param.i_fps_num = fps;
+    param.i_fps_num = mFps;
     //帧率分母
     param.i_fps_den = 1;
     param.i_timebase_den = param.i_fps_num;
@@ -123,28 +143,25 @@ void VideoChannel::encodeData(int8_t *data) {
         pthread_mutex_unlock(&mutex);
         return;
     }
-    //sps pps
+    //sps pps:告诉我们如何编码图像
     int sps_len, pps_len;
     uint8_t sps[100];
     uint8_t pps[100];
     pic_in->i_pts += 1;
     for (int i = 0; i < pi_nal; ++i) {
         if (nal[i].i_type == NAL_SPS) {
-            sps_len = nal[i].i_payload - 4;//去掉其实码
+            sps_len = nal[i].i_payload - 4;//去掉起始码长度
             memcpy(sps, nal[i].p_payload + 4, sps_len);
         } else if (nal[i].i_type == NAL_PPS) {
-            pps_len = nal[i].i_payload - 4;//去掉其实码
+            pps_len = nal[i].i_payload - 4;//去掉起始码长度
             memcpy(pps, nal[i].p_payload + 4, pps_len);
             //pps是跟在sps后面，这里达到pps表示前面sps肯定拿到了
             sendSpsPps(sps, pps, sps_len, pps_len);
         } else {
             //帧类型
             sendFrame(nal[i].i_type, nal[i].i_payload, nal[i].p_payload);
-
         }
     }
-
-
     pthread_mutex_unlock(&mutex);
 }
 
@@ -178,8 +195,6 @@ void VideoChannel::sendSpsPps(uint8_t *sps, uint8_t *pps, int sps_len, int pps_l
     packet->m_body[i++] = 0xFF;
     packet->m_body[i++] = 0xE1;
 
-    packet->m_body[i++] = 0xE1;
-
     packet->m_body[i++] = (sps_len >> 8) & 0xFF;
     packet->m_body[i++] = sps_len & 0xFF;
 
@@ -205,8 +220,6 @@ void VideoChannel::sendSpsPps(uint8_t *sps, uint8_t *pps, int sps_len, int pps_l
 
     //把数据包放入队列
     videoCallback(packet);
-
-
 }
 
 void VideoChannel::setVideoCallback(VideoChannel::VideoCallback videoCallback) {
@@ -224,31 +237,30 @@ void VideoChannel::sendFrame(int type, int payload, uint8_t *pPayload) {
     //去掉起始码
     if (pPayload[2] == 0x00) {
         pPayload += 4;
-    } else if (pPayload[2] == 0x00) {
+        payload -= 4;
+    } else if (pPayload[2] == 0x01) {
         pPayload += 3;
+        payload -= 3;
     }
 
     RTMPPacket *packet = new RTMPPacket;
     int body_size = 5 + 4 + payload;//参考图表
     RTMPPacket_Alloc(packet, body_size);
 
-    int i = 0;
-    packet->m_body[i] = 0x27;
-
+    packet->m_body[0] = 0x27;//普通帧
     if (type == NAL_SLICE_IDR) {
-        packet->m_body[i] = 0x17;
+        packet->m_body[0] = 0x17;//关键帧
     }
-    i++;
-    packet->m_body[i++] = 0x01;
-    packet->m_body[i++] = 0x00;
-    packet->m_body[i++] = 0x00;
-    packet->m_body[i++] = 0x00;
+    packet->m_body[1] = 0x01;
+    packet->m_body[2] = 0x00;
+    packet->m_body[3] = 0x00;
+    packet->m_body[4] = 0x00;
 
 
-    packet->m_body[i++] = (payload >> 24) & 0xFF;
-    packet->m_body[i++] = (payload >> 16) & 0xFF;
-    packet->m_body[i++] = (payload >> 8) & 0xFF;
-    packet->m_body[i++] = payload & 0xFF;
+    packet->m_body[5] = (payload >> 24) & 0xFF;
+    packet->m_body[6] = (payload >> 16) & 0xFF;
+    packet->m_body[7] = (payload >> 8) & 0xFF;
+    packet->m_body[8] = payload & 0xFF;
 
     memcpy(&packet->m_body[9], pPayload, payload);
 

@@ -6,9 +6,11 @@
 #define RTMP_PUSHER_VIDEOCHANNEL_H
 
 
+#include <rtmp.h>
 #include <x264.h>
 #include <pthread.h>
-#include "marco.h"
+#include <cstring>
+#include "macro.h"
 
 class VideoChannel {
     typedef void (*VideoCallback)(RTMPPacket *packet);

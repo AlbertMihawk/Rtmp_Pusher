@@ -13,7 +13,6 @@ using namespace std;
 template<typename T>
 class SafeQueue {
     typedef void(*ReleaseCallback)(T *);
-
     typedef void(*SyncHandle)(queue<T> &);
 
 public:
@@ -105,7 +104,6 @@ public:
     void clear() {
         //加锁
         pthread_mutex_lock(&mutex);
-        //TODO
         unsigned int size = q.size();
         for (int i = 0; i < size; ++i) {
             //取出对手元素

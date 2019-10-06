@@ -2,9 +2,11 @@ package com.albert.rtmp_pusher;
 
 import android.app.Activity;
 import android.hardware.Camera;
+import android.util.Log;
 import android.view.SurfaceHolder;
 
 public class VideoChannel implements Camera.PreviewCallback, CameraHelper.OnChangedSizeListener {
+    public static final String TAG = VideoChannel.class.getCanonicalName();
     private CameraHelper cameraHelper;
     private int bitrate;
     private int fps;
@@ -29,10 +31,12 @@ public class VideoChannel implements Camera.PreviewCallback, CameraHelper.OnChan
     }
 
     public void startLive() {
+        Log.i(TAG, "startLive: 开始直播");
         isLive = true;
     }
 
     public void stopLive() {
+        Log.i(TAG, "startLive: 停止直播");
         isLive = false;
     }
 
@@ -46,8 +50,14 @@ public class VideoChannel implements Camera.PreviewCallback, CameraHelper.OnChan
 
     @Override
     public void onChanged(int w, int h) {
-        //视频编码器的初始化有关 宽，高，fps，bitrate
-        mPusher.native_initVideoEncoder(w, h, fps, bitrate);
+        if (isLive) {
+            //视频编码器的初始化有关 宽，高，fps，bitrate
+            mPusher.native_initVideoEncoder(w, h, fps, bitrate);
+        }
 
+    }
+
+    public void release() {
+        cameraHelper.stopPreview();
     }
 }

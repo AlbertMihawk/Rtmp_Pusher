@@ -8,10 +8,12 @@
 #include <pthread.h>
 #include "VideoChannel.h"
 #include "safe_queue.h"
-#include "marco.h"
+#include "macro.h"
+#include "AudioChannel.h"
 //}
 
 VideoChannel *videoChannel = 0;
+AudioChannel *audioChannel = 0;
 SafeQueue<RTMPPacket *> packets;
 bool isStart;
 bool readyPushing;
@@ -19,11 +21,11 @@ pthread_t pid_start;
 uint32_t start_time;
 
 void releasePackets(RTMPPacket **packet) {
-    if (packet) {
-        RTMPPacket_Free(*packet);
-        delete packet;
-        packet = 0;
-    }
+//    if (packet) {
+//        RTMPPacket_Free(*packet);
+//        delete packet;
+//        packet = 0;
+//    }
 }
 
 void callback(RTMPPacket *packet) {
@@ -52,6 +54,10 @@ Java_com_albert_rtmp_1pusher_NEPusher_native_1init(JNIEnv *env, jobject thiz) {
     //编码器进行编码 工具类 VideoChannel
     videoChannel = new VideoChannel;
     videoChannel->setVideoCallback(callback);
+
+    audioChannel = new AudioChannel;
+    audioChannel->setAudioCallback(callback);
+
     //准备一个安全队列，把数据放入队列，在同一的线程中取出数据，在发送给服务器
     packets.setReleaseCallback(releasePackets);
 
@@ -60,6 +66,7 @@ Java_com_albert_rtmp_1pusher_NEPusher_native_1init(JNIEnv *env, jobject thiz) {
 //启动子线程任务
 void *task_start(void *args) {
     char *url = static_cast<char *>(args);
+    LOGI("args转化url: %s\n",url);
     RTMP *rtmp = 0;
     int ret = 0;
     do {
@@ -73,6 +80,7 @@ void *task_start(void *args) {
         RTMP_Init(rtmp);
         rtmp->Link.timeout = 5;
 
+        LOGI("rtmp媒体数据地址为: %s\n", url);
         //2、设置流媒体失败
         ret = RTMP_SetupURL(rtmp, url);
         if (!ret) {
@@ -87,12 +95,16 @@ void *task_start(void *args) {
         if (!ret) {
             LOGE("建立连接失败");
             break;
+        }else{
+            LOGI("建立连接成功");
         }
         //5、建立连接流
         ret = RTMP_ConnectStream(rtmp, 0);
         if (!ret) {
             LOGE("建立连接流失败");
             break;
+        }else{
+            LOGI("建立连接流成功");
         }
         //以上5步，已经准备好了
         readyPushing = 1;
@@ -111,10 +123,12 @@ void *task_start(void *args) {
             if (!packet) {
                 continue;
             }
-            //成功渠道数据包，发送
+            //成功取得数据包，发送
+            //给一个rtmp的流id
             packet->m_nInfoField2 = rtmp->m_stream_id;
             //将true放入队列
             ret = RTMP_SendPacket(rtmp, packet, 1);
+            releasePackets(&packet);
             if (!ret) {
                 LOGE("rtmp 断开");
                 break;
@@ -125,12 +139,16 @@ void *task_start(void *args) {
     } while (0);
 
     isStart = 0;
+    readyPushing = 0;
+    packets.setWork(0);
+    packets.clear();
+    //释放rtmp
     if (rtmp) {
         RTMP_Close(rtmp);
         RTMP_Free(rtmp);
     }
 
-    delete url;
+    delete(url);
     return 0;
 }
 
@@ -142,9 +160,11 @@ Java_com_albert_rtmp_1pusher_NEPusher_native_1start(JNIEnv *env, jobject thiz, j
     }
     isStart = 1;
     const char *path = env->GetStringUTFChars(path_, 0);
+    LOGI("jni读取rtmp地址%s\n", path);
     //Flag 来控制(isPlaying)
     char *url = new char(strlen(path) + 1);
     strcpy(url, path);
+    LOGI("copy的url字符串%s\n", url);
     //创建线程来进行直播
     pthread_create(&pid_start, 0, task_start, url);
 
@@ -171,8 +191,6 @@ Java_com_albert_rtmp_1pusher_NEPusher_native_1pushVideo(JNIEnv *env, jobject thi
     }
     jbyte *data = env->GetByteArrayElements(data_, NULL);
 
-
-
     //对摄像头原始数据进行编码
     videoChannel->encodeData(data);
     env->ReleaseByteArrayElements(data_, data, 0);
@@ -185,4 +203,43 @@ Java_com_albert_rtmp_1pusher_NEPusher_native_1initVideoEncoder(JNIEnv *env, jobj
     if (videoChannel) {
         videoChannel->initVideoEncoder(w, h, fps, bitrate);
     }
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_albert_rtmp_1pusher_NEPusher_native_1release(JNIEnv *env, jobject thiz) {
+    DELETE(videoChannel);
+}
+
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_albert_rtmp_1pusher_NEPusher_native_1initAudioEncoder(JNIEnv *env, jobject thiz,
+                                                               jint sample_rate,
+                                                               jint num_channels) {
+    if (audioChannel) {
+        audioChannel->initAudioEncoder(sample_rate, num_channels);
+    }
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_albert_rtmp_1pusher_NEPusher_native_1getInputSamples(JNIEnv *env, jobject thiz) {
+    if (audioChannel) {
+        return audioChannel->getInputSamples();
+    }
+    return -1;
+}
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_albert_rtmp_1pusher_NEPusher_native_1pushAudio(JNIEnv *env, jobject thiz,
+                                                        jbyteArray data_) {
+    if (!audioChannel || !readyPushing) {
+        return;
+    }
+    jbyte *data = env->GetByteArrayElements(data_, NULL);
+
+    //对摄像头原始数据进行编码
+    audioChannel->encodeData(data);
+    env->ReleaseByteArrayElements(data_, data, 0);
 }
