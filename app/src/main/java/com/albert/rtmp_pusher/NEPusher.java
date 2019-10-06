@@ -49,7 +49,7 @@ public class NEPusher {
     }
 
     public void release() {
-        videoChannel.release();
+//        videoChannel.release();
         audioChannel.release();
         native_release();
     }

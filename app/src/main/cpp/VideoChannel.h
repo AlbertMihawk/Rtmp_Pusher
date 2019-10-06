@@ -25,17 +25,15 @@ public:
 
     void encodeData(int8_t *data);
 
-    void sendSpsPps(uint8_t *sps, uint8_t *pps, int sps_len, int pps_len);
 
     void setVideoCallback(VideoCallback videoCallback);
 
-    void sendFrame(int type, int payload, uint8_t *pPayload);
 
 private:
-    int mWidth;
-    int mHeight;
-    int mFps;
-    int mBitrate;
+//    int mWidth;
+//    int mHeight;
+//    int mFps;
+//    int mBitrate;
     int y_len;
     int uv_len;
     x264_t *videoEncoder = 0;
@@ -43,6 +41,9 @@ private:
     pthread_mutex_t mutex;
     VideoCallback videoCallback;
 
+    void sendSpsPps(uint8_t *sps, uint8_t *pps, int sps_len, int pps_len);
+
+    void sendFrame(int type, int payload, uint8_t *pPayload);
 };
 
 

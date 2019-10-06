@@ -10,6 +10,7 @@
 #include "safe_queue.h"
 #include "macro.h"
 #include "AudioChannel.h"
+#include <unistd.h>
 //}
 
 VideoChannel *videoChannel = 0;
@@ -21,11 +22,11 @@ pthread_t pid_start;
 uint32_t start_time;
 
 void releasePackets(RTMPPacket **packet) {
-//    if (packet) {
-//        RTMPPacket_Free(*packet);
-//        delete packet;
-//        packet = 0;
-//    }
+    if (packet) {
+        RTMPPacket_Free(*packet);
+        delete packet;
+        packet = 0;
+    }
 }
 
 void callback(RTMPPacket *packet) {
@@ -66,7 +67,7 @@ Java_com_albert_rtmp_1pusher_NEPusher_native_1init(JNIEnv *env, jobject thiz) {
 //启动子线程任务
 void *task_start(void *args) {
     char *url = static_cast<char *>(args);
-    LOGI("args转化url: %s\n",url);
+    LOGI("args转化uri: %s\n", url);
     RTMP *rtmp = 0;
     int ret = 0;
     do {
@@ -81,29 +82,41 @@ void *task_start(void *args) {
         rtmp->Link.timeout = 5;
 
         LOGI("rtmp媒体数据地址为: %s\n", url);
-        //2、设置流媒体失败
-        ret = RTMP_SetupURL(rtmp, url);
-        if (!ret) {
-            LOGE("设置流媒体url失败");
-            break;
-        }
+        int urlCount = 3;
+        do {
+            //2、设置流媒体失败
+            ret = RTMP_SetupURL(rtmp, url);
+            LOGI("设置流媒体url结果：%d\n", ret);
+            if (!ret) {
+                LOGE("设置流媒体url失败");
+                continue;
+            } else {
+                LOGI("设置流媒体url成功");
+            }
+            //3、开启输出模式
+            RTMP_EnableWrite(rtmp);
 
-        //3、开启输出模式
-        RTMP_EnableWrite(rtmp);
-        //4、建立连接
-        ret = RTMP_Connect(rtmp, 0);
+            //4、建立连接
+            ret = RTMP_Connect(rtmp, 0);
+            LOGI("建立连接结果：%d\n", ret);
+        } while (!ret && urlCount-- > 0);
         if (!ret) {
             LOGE("建立连接失败");
             break;
-        }else{
+        } else {
             LOGI("建立连接成功");
         }
         //5、建立连接流
-        ret = RTMP_ConnectStream(rtmp, 0);
+        int streamCount = 3;
+        do {
+            usleep(1000 * 1000);
+            ret = RTMP_ConnectStream(rtmp, 0);
+            LOGI("流链接建立结果：%d\n", ret);
+        } while (!ret && streamCount-- > 0);
         if (!ret) {
             LOGE("建立连接流失败");
             break;
-        }else{
+        } else {
             LOGI("建立连接流成功");
         }
         //以上5步，已经准备好了
@@ -113,9 +126,12 @@ void *task_start(void *args) {
         start_time = RTMP_GetTime();
         //后面要对安全队列进行取数据的操作
         packets.setWork(1);
+
+//        callback(audioChannel->getAudioSeqHeader());
         RTMPPacket *packet = 0;
         //循环从队列中取数据（rtmp包),然后发送
         while (readyPushing) {
+            LOGI("开始推流");
             packets.pop(packet);
             if (!readyPushing) {
                 break;
@@ -132,6 +148,8 @@ void *task_start(void *args) {
             if (!ret) {
                 LOGE("rtmp 断开");
                 break;
+            } else {
+                LOGI("rtmp 传送正常");
             }
         }
         releasePackets(&packet);
@@ -148,7 +166,7 @@ void *task_start(void *args) {
         RTMP_Free(rtmp);
     }
 
-    delete(url);
+    delete (url);
     return 0;
 }
 

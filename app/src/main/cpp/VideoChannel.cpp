@@ -39,12 +39,12 @@ void VideoChannel::initVideoEncoder(int w, int h, int fps, int bitrate) {
     //正在使用编码器，产生冲突
     //为了避免冲突，加入互斥锁
     pthread_mutex_lock(&mutex);
-    mWidth = w;
-    mHeight = h;
-    mFps = fps;
-    mBitrate = bitrate;
+//    mWidth = w;
+//    mHeight = h;
+//    mFps = fps;
+//    mBitrate = bitrate;
 
-    y_len = mWidth * mHeight;
+    y_len = w * h;
     uv_len = y_len / 4;
 
     //TODO 先对videoEncoder和pic_in判断
@@ -54,7 +54,7 @@ void VideoChannel::initVideoEncoder(int w, int h, int fps, int bitrate) {
     }
     if (pic_in) {
         x264_picture_clean(pic_in);
-        DELETE(pic_in)
+        DELETE(pic_in);
     }
 
     //初始化x264编码器
@@ -68,8 +68,8 @@ void VideoChannel::initVideoEncoder(int w, int h, int fps, int bitrate) {
     //输入格式为YUV420P
     param.i_csp = X264_CSP_I420;
 
-    param.i_width = mWidth;
-    param.i_height = mHeight;
+    param.i_width = w;
+    param.i_height = h;
     //没有B帧
     param.i_bframe = 0;
 
@@ -78,16 +78,16 @@ void VideoChannel::initVideoEncoder(int w, int h, int fps, int bitrate) {
 //    param.rc.i_rc_method = X264_RC_ABR;
 
     //码率（比特率）单位Kb/s
-    param.rc.i_bitrate = mBitrate / 1000;
+    param.rc.i_bitrate = bitrate / 1000;
     //瞬时最大码率
-    param.rc.i_vbv_max_bitrate = mBitrate / 1000 * 1.2;
+    param.rc.i_vbv_max_bitrate = bitrate / 1000 * 1.2;
     //设置了i_vbv_max_bitrate就必须设置buffer大小，码率控制大小，单位Kb/s
-    param.rc.i_vbv_buffer_size = mBitrate / 1000;
+    param.rc.i_vbv_buffer_size = bitrate / 1000;
 
     //码率控制不是通过timebase和timestamp，而是通过fps
     param.b_vfr_input = 0;
     //帧率分子
-    param.i_fps_num = mFps;
+    param.i_fps_num = fps;
     //帧率分母
     param.i_fps_den = 1;
     param.i_timebase_den = param.i_fps_num;
@@ -108,9 +108,10 @@ void VideoChannel::initVideoEncoder(int w, int h, int fps, int bitrate) {
     //打开编码器
     videoEncoder = x264_encoder_open(&param);
     if (videoEncoder) {
-        LOGE("x264编码打开成功");
+        LOGI("x264编码打开成功");
+    } else {
+        LOGE("x264编码打开失败");
     }
-
     pthread_mutex_unlock(&mutex);
 }
 
@@ -122,46 +123,48 @@ void VideoChannel::encodeData(int8_t *data) {
     pthread_mutex_lock(&mutex);
 
     //y数据
-    memcpy(pic_in->img.plane[0], data, y_len);
-    for (int i = 0; i < uv_len; ++i) {
-        //u平面数据，拷贝nv21的uv区域奇数位置
-        *(pic_in->img.plane[1] + i) = *(data + y_len + i * 2 + 1);
-        //v平面数据，拷贝nv21的uv区域偶数位置
-        *(pic_in->img.plane[2] + i) = *(data + y_len + i * 2);
-
-    }
-
-    //通过H264编码得到NAL数组
-    x264_nal_t *nal = 0;
-    int pi_nal;
-    x264_picture_t pic_out;
-
-    //进行编码
-    int ret = x264_encoder_encode(videoEncoder, &nal, &pi_nal, pic_in, &pic_out);
-    if (ret < 0) {
-        LOGE("x264编码失败");
-        pthread_mutex_unlock(&mutex);
-        return;
-    }
-    //sps pps:告诉我们如何编码图像
-    int sps_len, pps_len;
-    uint8_t sps[100];
-    uint8_t pps[100];
-    pic_in->i_pts += 1;
-    for (int i = 0; i < pi_nal; ++i) {
-        if (nal[i].i_type == NAL_SPS) {
-            sps_len = nal[i].i_payload - 4;//去掉起始码长度
-            memcpy(sps, nal[i].p_payload + 4, sps_len);
-        } else if (nal[i].i_type == NAL_PPS) {
-            pps_len = nal[i].i_payload - 4;//去掉起始码长度
-            memcpy(pps, nal[i].p_payload + 4, pps_len);
-            //pps是跟在sps后面，这里达到pps表示前面sps肯定拿到了
-            sendSpsPps(sps, pps, sps_len, pps_len);
-        } else {
-            //帧类型
-            sendFrame(nal[i].i_type, nal[i].i_payload, nal[i].p_payload);
-        }
-    }
+//    memcpy(pic_in->img.plane[0], data, y_len);
+//    for (int i = 0; i < uv_len; ++i) {
+//        //u平面数据，拷贝nv21的uv区域奇数位置
+//        *(pic_in->img.plane[1] + i) = *(data + y_len + i * 2 + 1);
+//        //v平面数据，拷贝nv21的uv区域偶数位置
+//        *(pic_in->img.plane[2] + i) = *(data + y_len + i * 2);
+//
+//    }
+//
+//    //通过H264编码得到NAL数组
+//    x264_nal_t *nal = 0;
+//    int pi_nal;
+//    x264_picture_t pic_out;
+//
+//    //进行编码
+//    int ret = x264_encoder_encode(videoEncoder, &nal, &pi_nal, pic_in, &pic_out);
+//    if (ret < 0) {
+//        LOGE("x264编码失败");
+//        pthread_mutex_unlock(&mutex);
+//        return;
+//    }else{
+//        LOGI("x264编码成功");
+//    }
+//    //sps pps:告诉我们如何编码图像
+//    int sps_len, pps_len;
+//    uint8_t sps[100];
+//    uint8_t pps[100];
+//    pic_in->i_pts += 1;
+//    for (int i = 0; i < pi_nal; ++i) {
+//        if (nal[i].i_type == NAL_SPS) {
+//            sps_len = nal[i].i_payload - 4;//去掉起始码长度
+//            memcpy(sps, nal[i].p_payload + 4, sps_len);
+//        } else if (nal[i].i_type == NAL_PPS) {
+//            pps_len = nal[i].i_payload - 4;//去掉起始码长度
+//            memcpy(pps, nal[i].p_payload + 4, pps_len);
+//            //pps是跟在sps后面，这里达到pps表示前面sps肯定拿到了
+//            sendSpsPps(sps, pps, sps_len, pps_len);
+//        } else {
+//            //帧类型
+//            sendFrame(nal[i].i_type, nal[i].i_payload, nal[i].p_payload);
+//        }
+//    }
     pthread_mutex_unlock(&mutex);
 }
 
@@ -209,7 +212,7 @@ void VideoChannel::sendSpsPps(uint8_t *sps, uint8_t *pps, int sps_len, int pps_l
 
     memcpy(&packet->m_body[i], pps, pps_len);
 
-    i += pps_len;//拷贝玩pps数据，i移位
+    i += pps_len;//拷贝完pps数据，i移位
 
     packet->m_packetType = RTMP_PACKET_TYPE_VIDEO;//包类型
     packet->m_nBodySize = body_size;

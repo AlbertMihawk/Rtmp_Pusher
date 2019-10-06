@@ -28,6 +28,8 @@ public:
 
     void encodeData(int8_t *data);
 
+    RTMPPacket *getAudioSeqHeader();
+
 private:
     u_long inputSamples;
     u_long maxOutputBytes;

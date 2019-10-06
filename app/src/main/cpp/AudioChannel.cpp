@@ -9,7 +9,6 @@
 
 AudioChannel::AudioChannel() {
 
-
 }
 
 
@@ -99,9 +98,38 @@ void AudioChannel::encodeData(int8_t *data) {
         packet->m_headerType = RTMP_PACKET_SIZE_LARGE;
 
         audioCallback(packet);
-
-
     }
+}
+
+RTMPPacket *AudioChannel::getAudioSeqHeader() {
+
+    u_char *ppBuffer;
+    u_long len;
+    //获取编码器的解码配置信息
+    faacEncGetDecoderSpecificInfo(audioEncoder, &ppBuffer, &len);
+
+    //看图标，拼数据
+    RTMPPacket *packet = new RTMPPacket;
+    int body_size = 2 + len;
+    RTMPPacket_Alloc(packet, body_size);
+    packet->m_body[0] = 0xAF;//双声道
+    if (mChannels == 1) {
+        packet->m_body[0] = 0xAE;//单声道
+    }
+    //这里是序列头，所以是00
+    packet->m_body[1] = 0x00;
+
+    //序列头数据
+    memcpy(&packet->m_body[2], ppBuffer, len);
+
+    packet->m_packetType = RTMP_PACKET_TYPE_AUDIO;
+    packet->m_nBodySize = body_size;
+    packet->m_nChannel = 11;
+    packet->m_nTimeStamp = -1;
+    packet->m_hasAbsTimestamp = 0;
+    packet->m_headerType = RTMP_PACKET_SIZE_MEDIUM;
+
+    return packet;
 }
 
 void AudioChannel::setAudioCallback(AudioChannel::AudioCallback audioCallback) {
