@@ -25,7 +25,7 @@ void releasePackets(RTMPPacket **packet) {
     if (packet) {
         RTMPPacket_Free(*packet);
 //        delete packet;
-//        packet = 0;
+        packet = 0;
     }
 }
 

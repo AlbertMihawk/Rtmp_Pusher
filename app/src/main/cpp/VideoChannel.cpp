@@ -144,7 +144,7 @@ void VideoChannel::encodeData(int8_t *data) {
         pthread_mutex_unlock(&mutex);
         return;
     }else{
-        LOGI("x264编码成功");
+//        LOGI("x264编码成功");
     }
     //sps pps:告诉我们如何编码图像
     int sps_len, pps_len;
