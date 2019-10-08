@@ -37,19 +37,19 @@ public class NEPusher {
     public void startLive(String path) {
         //native层
         native_start(path);
-//        videoChannel.startLive();
+        videoChannel.startLive();
         audioChannel.startLive();//采集micphone数据
     }
 
 
     public void stopLive() {
-//        videoChannel.stopLive();
+        videoChannel.stopLive();
         audioChannel.stopLive();
         native_stop();
     }
 
     public void release() {
-//        videoChannel.release();
+        videoChannel.release();
         audioChannel.release();
         native_release();
     }

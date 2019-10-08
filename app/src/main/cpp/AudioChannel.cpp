@@ -95,7 +95,7 @@ void AudioChannel::encodeData(int8_t *data) {
         packet->m_nChannel = 11;
         packet->m_nTimeStamp = -1;
         packet->m_hasAbsTimestamp = 0;
-        packet->m_headerType = RTMP_PACKET_SIZE_LARGE;
+        packet->m_headerType = RTMP_PACKET_SIZE_MEDIUM;
 
         audioCallback(packet);
     }

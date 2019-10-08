@@ -24,8 +24,8 @@ uint32_t start_time;
 void releasePackets(RTMPPacket **packet) {
     if (packet) {
         RTMPPacket_Free(*packet);
-        delete packet;
-        packet = 0;
+//        delete packet;
+//        packet = 0;
     }
 }
 
@@ -131,7 +131,7 @@ void *task_start(void *args) {
         RTMPPacket *packet = 0;
         //循环从队列中取数据（rtmp包),然后发送
         while (readyPushing) {
-            LOGI("开始推流");
+//            LOGI("开始推流");
             packets.pop(packet);
             if (!readyPushing) {
                 break;
@@ -149,7 +149,7 @@ void *task_start(void *args) {
                 LOGE("rtmp 断开");
                 break;
             } else {
-                LOGI("rtmp 传送正常");
+//                LOGI("rtmp 传送正常");
             }
         }
         releasePackets(&packet);
@@ -180,8 +180,12 @@ Java_com_albert_rtmp_1pusher_NEPusher_native_1start(JNIEnv *env, jobject thiz, j
     const char *path = env->GetStringUTFChars(path_, 0);
     LOGI("jni读取rtmp地址%s\n", path);
     //Flag 来控制(isPlaying)
-    char *url = new char(strlen(path) + 1);
+    char *url = (char *) malloc(strlen(path) + 1);
+
     strcpy(url, path);
+    url[strlen(path)] = 0;
+    LOGI("url:%s\n", url);
+
     LOGI("copy的url字符串%s\n", url);
     //创建线程来进行直播
     pthread_create(&pid_start, 0, task_start, url);

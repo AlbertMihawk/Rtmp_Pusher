@@ -31,7 +31,7 @@ public class MainActivity extends AppCompatActivity {
 
         SurfaceView surfaceView = findViewById(R.id.surfaceView);
         pusher = new NEPusher(this, Camera.CameraInfo.CAMERA_FACING_BACK,
-                640, 480, 25, 800000);
+                1280, 720, 25, 800000);
         pusher.setPreviewDisplay(surfaceView.getHolder());
     }
 
