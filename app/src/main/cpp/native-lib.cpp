@@ -22,10 +22,10 @@ pthread_t pid_start;
 uint32_t start_time;
 
 void releasePackets(RTMPPacket **packet) {
-    if (packet) {
+    if (*packet) {
         RTMPPacket_Free(*packet);
-//        delete packet;
-        packet = 0;
+        delete *packet;
+        *packet = 0;
     }
 }
 
@@ -180,10 +180,12 @@ Java_com_albert_rtmp_1pusher_NEPusher_native_1start(JNIEnv *env, jobject thiz, j
     const char *path = env->GetStringUTFChars(path_, 0);
     LOGI("jni读取rtmp地址%s\n", path);
     //Flag 来控制(isPlaying)
-    char *url = (char *) malloc(strlen(path) + 1);
 
-    strcpy(url, path);
-    url[strlen(path)] = 0;
+    char *url = new char[strlen(path) + 1];
+//    char *url = (char *) malloc(strlen(path) + 1);
+//    strcpy(url, path);
+//    url[strlen(path)] = 0;
+
     LOGI("url:%s\n", url);
 
     LOGI("copy的url字符串%s\n", url);
